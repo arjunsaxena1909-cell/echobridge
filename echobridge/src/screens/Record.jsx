@@ -25,8 +25,20 @@ export default function Record() {
   const chunksRef   = useRef([])
   const timerRef    = useRef(null)
   const previewRef  = useRef(null)
+  const fileInputRef = useRef(null)
 
   const MAX_SECS = 60
+
+  function handleFileUpload(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    const isVideo = file.type.startsWith('video/')
+    const isAudio = file.type.startsWith('audio/')
+    if (!isVideo && !isAudio) { showToast('Please select an audio or video file', 'error'); return }
+    setMode(isVideo ? 'video' : 'audio')
+    setBlob(file)
+    showToast('File ready to post ✓', 'success')
+  }
 
   useEffect(() => {
     return () => {
@@ -95,7 +107,7 @@ export default function Record() {
     if (!blob)         { showToast('Please record something first', 'error'); return }
     setUploading(true)
 
-    const ext  = mode === 'video' ? 'webm' : 'webm'
+    const ext  = blob.name ? blob.name.split('.').pop() : (mode === 'video' ? 'webm' : 'webm')
     const path = `${user.id}/${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage
       .from('stories')
@@ -141,6 +153,23 @@ export default function Record() {
             {m === 'audio' ? '🎙️ Audio' : '📹 Video'}
           </button>
         ))}
+      </div>
+
+      {/* File upload option */}
+      <div style={{ padding:'10px 16px 0', display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ flex:1, height:1, background:'var(--beige-dark)' }} />
+        <span style={{ fontSize:12, color:'var(--text-light)', whiteSpace:'nowrap' }}>or upload a file</span>
+        <div style={{ flex:1, height:1, background:'var(--beige-dark)' }} />
+      </div>
+      <div style={{ padding:'10px 16px 0' }}>
+        <input ref={fileInputRef} type="file"
+          accept="audio/*,video/*" style={{ display:'none' }}
+          onChange={handleFileUpload} />
+        <button className="btn btn-secondary"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={recording}>
+          📁 Upload Audio or Video File
+        </button>
       </div>
 
       {/* Recording interface */}

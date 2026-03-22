@@ -162,7 +162,6 @@ export default function Profile() {
               EchoBridge is a two-way digital storytelling platform connecting elderly individuals (65–80)
               and teenagers (13–25) through short audio and video stories within local communities.
             </p>
-            <p style={{ fontSize:12, color:'var(--text-light)', marginTop:12 }}>MYP Design — PCUP 2025</p>
           </div>
         </div>
       )}

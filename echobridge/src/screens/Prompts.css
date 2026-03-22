@@ -1,0 +1,25 @@
+.category-scroll {
+  display: flex; gap: 8px;
+  overflow-x: auto; padding: 0 16px 12px;
+  scrollbar-width: none;
+}
+.category-scroll::-webkit-scrollbar { display: none; }
+.cat-chip {
+  flex-shrink: 0;
+  padding: 7px 16px;
+  border-radius: 99px;
+  border: 1.5px solid var(--brown);
+  background: var(--white);
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .2s;
+}
+.cat-chip.active { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
+
+.prompt-group { margin-bottom: 24px; }
+.prompt-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 10px; cursor: pointer;
+  padding: 14px 16px;
+}
+.prompt-row:active { transform: scale(0.98); }

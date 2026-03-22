@@ -1,0 +1,44 @@
+.bottom-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: var(--nav-height);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-top: 1px solid var(--beige-dark);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+  z-index: 100;
+  padding: 0 8px;
+}
+
+.nav-item {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
+  background: none; border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--text-light);
+  transition: color .2s;
+}
+
+.nav-item.active { color: var(--blue-dark); }
+
+.nav-icon { font-size: 22px; line-height: 1; }
+.nav-label { font-size: 10px; font-weight: 500; font-family: 'Poppins', sans-serif; }
+
+/* Record button */
+.nav-item.record-btn { flex: 0 0 64px; }
+.record-circle {
+  width: 54px; height: 54px;
+  background: var(--blue-dark);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(122,175,212,0.5);
+  margin-top: -20px;
+  transition: transform .15s;
+}
+.nav-item.record-btn:active .record-circle { transform: scale(0.93); }
+.record-circle .nav-icon { font-size: 24px; }

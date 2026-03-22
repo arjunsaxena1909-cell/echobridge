@@ -1,0 +1,53 @@
+.auth-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(160deg, var(--blue-light) 0%, var(--beige) 50%);
+  min-height: 100%;
+  padding: 0 20px 40px;
+}
+.auth-top {
+  text-align: center;
+  padding: 60px 0 30px;
+}
+.auth-logo { font-size: 56px; margin-bottom: 12px; }
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px 24px;
+}
+.auth-error {
+  color: var(--error);
+  font-size: 13px;
+  margin-bottom: 12px;
+  background: #fff0f0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+.auth-link { color: var(--blue-dark); font-weight: 600; text-decoration: none; }
+
+/* Step indicator */
+.step-indicator {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-bottom: 24px;
+}
+.step-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--brown);
+  transition: background .3s;
+}
+.step-dot.active { background: var(--blue-dark); }
+.step-line { width: 40px; height: 2px; background: var(--brown); }
+
+/* Age picker */
+.age-group-picker { display: flex; gap: 12px; }
+.age-option {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 16px 8px;
+  border: 2px solid var(--brown); border-radius: var(--radius);
+  background: var(--white); cursor: pointer;
+  transition: all .2s;
+}
+.age-option.selected { border-color: var(--blue-dark); background: var(--blue-light); }
+.age-label { font-weight: 600; font-size: 15px; font-family: 'Poppins', sans-serif; }
+.age-sub   { font-size: 12px; color: var(--text-light); font-family: 'Poppins', sans-serif; }

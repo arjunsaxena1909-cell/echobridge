@@ -1,0 +1,199 @@
+/* ─── EchoBridge Design System ─────────────────────────────────── */
+:root {
+  --blue:       #A7C7E7;
+  --blue-dark:  #7AAFD4;
+  --blue-light: #D4E8F5;
+  --beige:      #F5EFE6;
+  --beige-dark: #EAE0D0;
+  --brown:      #D6C3A3;
+  --brown-dark: #B8A07A;
+  --text:       #2D2D2D;
+  --text-light: #6B6B6B;
+  --white:      #FFFFFF;
+  --error:      #E07070;
+  --success:    #7EC8A0;
+  --shadow:     0 2px 16px rgba(0,0,0,0.08);
+  --radius:     16px;
+  --radius-sm:  10px;
+  --nav-height: 70px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Poppins', sans-serif;
+  background: var(--beige);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #D6C3A3;
+}
+
+/* Phone shell */
+.app-shell {
+  width: 390px;
+  height: 844px;
+  background: var(--beige);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  border-radius: 40px;
+}
+
+@media (max-width: 450px) {
+  #root { background: var(--beige); align-items: flex-start; }
+  .app-shell {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Scrollable screen content */
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: var(--nav-height);
+  scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+
+/* Auth screens have no bottom nav */
+.screen.auth { padding-bottom: 0; }
+
+/* ─── Typography ────────────────────────────────────────────────── */
+h1 { font-size: 24px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 600; }
+h3 { font-size: 17px; font-weight: 600; }
+p  { font-size: 15px; font-weight: 400; line-height: 1.5; }
+small { font-size: 13px; color: var(--text-light); }
+
+/* ─── Buttons ───────────────────────────────────────────────────── */
+.btn {
+  display: block; width: 100%;
+  padding: 15px 20px;
+  border-radius: var(--radius);
+  border: none; cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px; font-weight: 600;
+  transition: opacity .2s, transform .1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary   { background: var(--blue-dark); color: var(--white); }
+.btn-secondary { background: var(--beige-dark); color: var(--text); border: 1.5px solid var(--brown); }
+.btn-ghost     { background: transparent; color: var(--blue-dark); font-weight: 500; }
+.btn-sm {
+  display: inline-block; width: auto;
+  padding: 8px 18px; font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+.btn-danger { background: var(--error); color: white; }
+
+/* ─── Inputs ────────────────────────────────────────────────────── */
+.input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.input-group label { font-size: 14px; font-weight: 500; color: var(--text); }
+
+.input {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--brown);
+  background: var(--white);
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .2s;
+  width: 100%;
+}
+.input:focus { border-color: var(--blue-dark); }
+.input::placeholder { color: #B0B0B0; }
+
+textarea.input { resize: none; min-height: 90px; }
+
+/* ─── Cards ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+/* ─── Badge pill ────────────────────────────────────────────────── */
+.pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 99px;
+  font-size: 12px; font-weight: 600;
+}
+.pill-elder { background: #FFE5CC; color: #B55C00; }
+.pill-teen  { background: #CCE5FF; color: #005EA2; }
+
+/* ─── Divider ───────────────────────────────────────────────────── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-light); font-size: 13px; margin: 12px 0;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--brown);
+}
+
+/* ─── Spinner ───────────────────────────────────────────────────── */
+.spinner {
+  width: 40px; height: 40px;
+  border: 4px solid var(--blue-light);
+  border-top-color: var(--blue-dark);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  margin: 40px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Toast ─────────────────────────────────────────────────────── */
+.toast {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: #2D2D2D; color: white;
+  padding: 12px 24px; border-radius: 99px;
+  font-size: 14px; font-weight: 500;
+  z-index: 999; white-space: nowrap;
+  animation: fadeInUp .3s ease;
+}
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--error); }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ─── Avatar ────────────────────────────────────────────────────── */
+.avatar {
+  border-radius: 50%; object-fit: cover;
+  background: var(--blue-light);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: var(--blue-dark); flex-shrink: 0;
+}
+
+/* ─── Section header ────────────────────────────────────────────── */
+.section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+
+/* ─── Empty state ───────────────────────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text-light);
+}
+.empty-state .emoji { font-size: 48px; margin-bottom: 12px; }

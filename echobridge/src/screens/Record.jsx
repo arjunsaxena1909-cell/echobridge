@@ -11,23 +11,36 @@ export default function Record() {
   const promptFromNav = location.state?.prompt || ''
   const promptIdFromNav = location.state?.promptId || null
 
-  const [mode,        setMode]        = useState('audio') // 'audio' | 'video'
-  const [recording,   setRecording]   = useState(false)
-  const [elapsed,     setElapsed]     = useState(0)
-  const [blob,        setBlob]        = useState(null)
-  const [title,       setTitle]       = useState('')
-  const [privacy,     setPrivacy]     = useState('community')
-  const [uploading,   setUploading]   = useState(false)
-  const [toast,       setToast]       = useState(null)
-  const [stream,      setStream]      = useState(null)
+  const [mode,      setMode]      = useState('audio')
+  const [recording, setRecording] = useState(false)
+  const [elapsed,   setElapsed]   = useState(0)
+  const [blob,      setBlob]      = useState(null)
+  const [title,     setTitle]     = useState('')
+  const [privacy,   setPrivacy]   = useState('community')
+  const [uploading, setUploading] = useState(false)
+  const [toast,     setToast]     = useState(null)
 
   const mediaRef    = useRef(null)
   const chunksRef   = useRef([])
   const timerRef    = useRef(null)
   const previewRef  = useRef(null)
-  const fileInputRef = useRef(null)
+  const streamRef   = useRef(null)
+  const fileInputRef= useRef(null)
+  const elapsedRef  = useRef(0)
 
   const MAX_SECS = 60
+
+  useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current)
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [])
+
+  function showToast(msg, type = 'default') {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2800)
+  }
 
   function handleFileUpload(e) {
     const file = e.target.files[0]
@@ -37,28 +50,14 @@ export default function Record() {
     if (!isVideo && !isAudio) { showToast('Please select an audio or video file', 'error'); return }
     setMode(isVideo ? 'video' : 'audio')
     setBlob(file)
-    showToast('File ready to post ✓', 'success')
-  }
-
-  useEffect(() => {
-    return () => {
-      clearInterval(timerRef.current)
-      stream?.getTracks().forEach(t => t.stop())
-    }
-  }, [stream])
-
-  function showToast(msg, type='default') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 2800)
+    showToast('File ready ✓', 'success')
   }
 
   async function startRecording() {
     try {
-      const constraints = mode === 'video'
-        ? { video: true, audio: true }
-        : { audio: true }
+      const constraints = mode === 'video' ? { video: true, audio: true } : { audio: true }
       const s = await navigator.mediaDevices.getUserMedia(constraints)
-      setStream(s)
+      streamRef.current = s
 
       if (mode === 'video' && previewRef.current) {
         previewRef.current.srcObject = s
@@ -76,15 +75,22 @@ export default function Record() {
         s.getTracks().forEach(t => t.stop())
       }
       mr.start()
-      setRecording(true)
+
+      // Reset and start timer using ref to avoid stale closure
+      elapsedRef.current = 0
       setElapsed(0)
+      setRecording(true)
 
       timerRef.current = setInterval(() => {
-        setElapsed(e => {
-          if (e + 1 >= MAX_SECS) { stopRecording(); return MAX_SECS }
-          return e + 1
-        })
+        elapsedRef.current += 1
+        setElapsed(elapsedRef.current)
+        if (elapsedRef.current >= MAX_SECS) {
+          clearInterval(timerRef.current)
+          mediaRef.current?.stop()
+          setRecording(false)
+        }
       }, 1000)
+
     } catch (err) {
       showToast('Microphone/camera access denied', 'error')
     }
@@ -98,32 +104,29 @@ export default function Record() {
 
   function retake() {
     setBlob(null)
+    elapsedRef.current = 0
     setElapsed(0)
     if (previewRef.current) previewRef.current.srcObject = null
   }
 
   async function handlePost() {
     if (!title.trim()) { showToast('Please add a title', 'error'); return }
-    if (!blob)         { showToast('Please record something first', 'error'); return }
+    if (!blob) { showToast('Please record or upload something first', 'error'); return }
     setUploading(true)
 
-    const ext  = blob.name ? blob.name.split('.').pop() : (mode === 'video' ? 'webm' : 'webm')
+    const ext  = blob.name ? blob.name.split('.').pop() : 'webm'
     const path = `${user.id}/${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage
-      .from('stories')
-      .upload(path, blob, { contentType: blob.type })
+      .from('stories').upload(path, blob, { contentType: blob.type })
 
     if (upErr) { showToast(upErr.message, 'error'); setUploading(false); return }
 
     const { data: { publicUrl } } = supabase.storage.from('stories').getPublicUrl(path)
 
     const { error: dbErr } = await supabase.from('stories').insert({
-      user_id:    user.id,
-      title:      title.trim(),
-      media_url:  publicUrl,
-      media_type: mode,
-      prompt_id:  promptIdFromNav,
-      privacy,
+      user_id: user.id, title: title.trim(),
+      media_url: publicUrl, media_type: mode,
+      prompt_id: promptIdFromNav, privacy,
     })
     setUploading(false)
     if (dbErr) { showToast(dbErr.message, 'error'); return }
@@ -131,7 +134,7 @@ export default function Record() {
     setTimeout(() => navigate('/'), 1400)
   }
 
-  const fmtTime = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
+  const fmtTime = s => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
   const pct = (elapsed / MAX_SECS) * 100
 
   return (
@@ -139,9 +142,7 @@ export default function Record() {
       <div style={{ padding:'24px 20px 0' }}>
         <h2>Share Your Story</h2>
         {promptFromNav && (
-          <div className="prompt-tag" style={{ marginTop:10 }}>
-            💡 {promptFromNav}
-          </div>
+          <div className="prompt-tag" style={{ marginTop:10 }}>💡 {promptFromNav}</div>
         )}
       </div>
 
@@ -155,28 +156,25 @@ export default function Record() {
         ))}
       </div>
 
-      {/* File upload option */}
+      {/* File upload */}
       <div style={{ padding:'10px 16px 0', display:'flex', alignItems:'center', gap:10 }}>
         <div style={{ flex:1, height:1, background:'var(--beige-dark)' }} />
         <span style={{ fontSize:12, color:'var(--text-light)', whiteSpace:'nowrap' }}>or upload a file</span>
         <div style={{ flex:1, height:1, background:'var(--beige-dark)' }} />
       </div>
-      <div style={{ padding:'10px 16px 0' }}>
-        <input ref={fileInputRef} type="file"
-          accept="audio/*,video/*" style={{ display:'none' }}
-          onChange={handleFileUpload} />
-        <button className="btn btn-secondary"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={recording}>
+      <div style={{ padding:'8px 16px 0' }}>
+        <input ref={fileInputRef} type="file" accept="audio/*,video/*"
+          style={{ display:'none' }} onChange={handleFileUpload} />
+        <button className="btn btn-secondary" disabled={recording}
+          onClick={() => fileInputRef.current?.click()}>
           📁 Upload Audio or Video File
         </button>
       </div>
 
-      {/* Recording interface */}
+      {/* Recording area */}
       <div className="record-area">
-        {mode === 'video' && (
-          <video ref={previewRef} className="video-preview" muted playsInline
-            style={{ display: blob ? 'none' : 'block' }} />
+        {mode === 'video' && !blob && (
+          <video ref={previewRef} className="video-preview" muted playsInline />
         )}
 
         {blob && (
@@ -190,7 +188,6 @@ export default function Record() {
 
         {!blob && (
           <>
-            {/* Timer ring */}
             <div className="timer-ring-wrap">
               <svg className="timer-ring" viewBox="0 0 120 120">
                 <circle cx="60" cy="60" r="54" fill="none" stroke="var(--blue-light)" strokeWidth="8" />
@@ -198,19 +195,20 @@ export default function Record() {
                   stroke={elapsed > 50 ? '#E07070' : 'var(--blue-dark)'}
                   strokeWidth="8" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 54}`}
-                  strokeDashoffset={`${2 * Math.PI * 54 * (1 - pct/100)}`}
+                  strokeDashoffset={`${2 * Math.PI * 54 * (1 - pct / 100)}`}
                   style={{ transform:'rotate(-90deg)', transformOrigin:'center', transition:'stroke-dashoffset .5s' }}
                 />
               </svg>
               <div className="timer-text">{fmtTime(elapsed)}</div>
             </div>
+
             <p style={{ color:'var(--text-light)', fontSize:13, marginBottom:24 }}>
-              {recording ? `Recording… ${MAX_SECS - elapsed}s left` : 'Tap the button to start recording'}
+              {recording
+                ? `Recording… ${MAX_SECS - elapsed}s left`
+                : 'Tap the button to start recording'}
             </p>
 
-            {/* Main record button */}
-            <button
-              className={`big-record-btn ${recording ? 'stop' : ''}`}
+            <button className={`big-record-btn ${recording ? 'stop' : ''}`}
               onClick={recording ? stopRecording : startRecording}>
               {recording ? '⏹ Stop' : '⏺ Record'}
             </button>
@@ -218,13 +216,13 @@ export default function Record() {
         )}
 
         {blob && (
-          <div style={{ display:'flex', gap:12, marginTop:16, width:'100%' }}>
-            <button className="btn btn-secondary" style={{ flex:1 }} onClick={retake}>↩ Retake</button>
-          </div>
+          <button className="btn btn-secondary" style={{ marginTop:16, width:'100%' }} onClick={retake}>
+            ↩ Retake
+          </button>
         )}
       </div>
 
-      {/* Story details */}
+      {/* Post details */}
       {blob && (
         <div style={{ padding:'0 16px 20px' }}>
           <div className="input-group">
@@ -232,7 +230,6 @@ export default function Record() {
             <input className="input" placeholder="Give your story a title…"
               value={title} onChange={e => setTitle(e.target.value)} />
           </div>
-
           <div className="input-group">
             <label>Visibility</label>
             <div className="privacy-row">
@@ -249,7 +246,6 @@ export default function Record() {
               ))}
             </div>
           </div>
-
           <button className="btn btn-primary" onClick={handlePost} disabled={uploading}>
             {uploading ? 'Uploading…' : '🚀 Post Story'}
           </button>

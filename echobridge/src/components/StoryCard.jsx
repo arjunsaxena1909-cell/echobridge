@@ -57,9 +57,10 @@ export default function StoryCard({ story, onReactionUpdate }) {
     <div className="story-card card" onClick={() => navigate(`/story/${story.id}`)}>
       {/* Header */}
       <div className="story-header">
-        <div className="avatar" style={{ width:42, height:42, fontSize:16 }}>
-          {initials}
-        </div>
+        {profile?.avatar_url
+          ? <img src={profile.avatar_url} alt="" style={{ width:42, height:42, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />
+          : <div className="avatar" style={{ width:42, height:42, fontSize:16 }}>{initials}</div>
+        }
         <div className="story-meta">
           <div className="story-username">{profile?.full_name || 'Anonymous'}</div>
           <div style={{ display:'flex', gap:6, alignItems:'center' }}>

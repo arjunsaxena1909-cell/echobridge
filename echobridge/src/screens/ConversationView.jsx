@@ -27,10 +27,15 @@ export default function ConversationView() {
 
   async function fetchAll() {
     const [{ data: s }, { data: c }] = await Promise.all([
-      supabase.from('stories').select('*, profiles(*), prompts(question), reactions(*)').eq('id', id).single(),
-      supabase.from('comments').select('*, profiles(full_name, age_group)').eq('story_id', id).order('created_at'),
+      supabase.from('stories')
+        .select('*, profiles(*), prompts(question), reactions(*)')
+        .eq('id', id).single(),
+      supabase.from('comments')
+        .select('*, profiles(id, full_name, age_group, avatar_url)')
+        .eq('story_id', id).order('created_at'),
     ])
-    setStory(s); setComments(c || [])
+    setStory(s)
+    setComments(c || [])
     setLoading(false)
   }
 
@@ -40,6 +45,11 @@ export default function ConversationView() {
     await supabase.from('comments').insert({ user_id: user.id, story_id: id, content: text.trim() })
     setText('')
     setPosting(false)
+    fetchAll()
+  }
+
+  async function deleteComment(commentId) {
+    await supabase.from('comments').delete().eq('id', commentId)
     fetchAll()
   }
 
@@ -62,6 +72,8 @@ export default function ConversationView() {
   const initials = p?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '??'
   const userReaction = story.reactions?.find(r => r.user_id === user.id)
 
+  const myInitials = profile?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'
+
   return (
     <div className="screen">
       {/* Back header */}
@@ -71,14 +83,19 @@ export default function ConversationView() {
         <div style={{ width:60 }} />
       </div>
 
-      {/* Story section */}
-      <div style={{ padding:'0 16px 16px' }}>
+      <div style={{ padding:'0 16px 80px' }}>
+        {/* Story card */}
         <div className="card" style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
-            <div className="avatar" style={{ width:44, height:44, fontSize:16 }}>{initials}</div>
+            {p?.avatar_url
+              ? <img src={p.avatar_url} alt="" style={{ width:44, height:44, borderRadius:'50%', objectFit:'cover' }} />
+              : <div className="avatar" style={{ width:44, height:44, fontSize:16 }}>{initials}</div>
+            }
             <div>
               <p style={{ fontWeight:600 }}>{p?.full_name || 'Anonymous'}</p>
-              <span className={`pill pill-${p?.age_group}`}>{p?.age_group === 'elder' ? 'Elder 65–80' : 'Youth 13–25'}</span>
+              <span className={`pill pill-${p?.age_group}`}>
+                {p?.age_group === 'elder' ? 'Elder 65–80' : 'Youth 13–25'}
+              </span>
             </div>
           </div>
 
@@ -103,8 +120,7 @@ export default function ConversationView() {
               const count = story.reactions?.filter(x => x.reaction_type === r.type).length || 0
               const active = userReaction?.reaction_type === r.type
               return (
-                <button key={r.type}
-                  className={`reaction-btn ${active ? 'active' : ''}`}
+                <button key={r.type} className={`reaction-btn ${active ? 'active' : ''}`}
                   onClick={() => react(r.type)}>
                   {r.emoji} <span>{count || ''}</span>
                 </button>
@@ -123,20 +139,52 @@ export default function ConversationView() {
         )}
 
         {comments.map(c => {
-          const ini = c.profiles?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '??'
           const isMe = c.user_id === user.id
+          const cInitials = c.profiles?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '??'
           return (
             <div key={c.id} className={`comment-bubble ${isMe ? 'me' : ''}`}>
+              {/* Avatar - shown on both sides */}
               {!isMe && (
-                <div className="avatar" style={{ width:32, height:32, fontSize:12, flexShrink:0 }}>{ini}</div>
+                <div style={{ flexShrink:0 }}>
+                  {c.profiles?.avatar_url
+                    ? <img src={c.profiles.avatar_url} alt="" style={{ width:34, height:34, borderRadius:'50%', objectFit:'cover' }} />
+                    : <div className="avatar" style={{ width:34, height:34, fontSize:12 }}>{cInitials}</div>
+                  }
+                </div>
               )}
+
               <div className="comment-content">
-                {!isMe && <p className="comment-name">{c.profiles?.full_name}</p>}
+                {!isMe && (
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+                    <p className="comment-name">{c.profiles?.full_name || 'Anonymous'}</p>
+                    <span className={`pill pill-${c.profiles?.age_group}`} style={{ fontSize:10, padding:'1px 8px' }}>
+                      {c.profiles?.age_group === 'elder' ? 'Elder' : 'Youth'}
+                    </span>
+                  </div>
+                )}
                 <div className={`comment-text ${isMe ? 'me' : ''}`}>{c.content}</div>
-                <small style={{ color:'var(--text-light)', fontSize:11 }}>
-                  {new Date(c.created_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
-                </small>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:3 }}>
+                  <small style={{ color:'var(--text-light)', fontSize:11 }}>
+                    {new Date(c.created_at).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
+                  </small>
+                  {isMe && (
+                    <button onClick={() => deleteComment(c.id)}
+                      style={{ background:'none', border:'none', cursor:'pointer', fontSize:11,
+                        color:'var(--error)', fontFamily:'Poppins,sans-serif' }}>
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {isMe && (
+                <div style={{ flexShrink:0 }}>
+                  {profile?.avatar_url
+                    ? <img src={profile.avatar_url} alt="" style={{ width:34, height:34, borderRadius:'50%', objectFit:'cover' }} />
+                    : <div className="avatar" style={{ width:34, height:34, fontSize:12 }}>{myInitials}</div>
+                  }
+                </div>
+              )}
             </div>
           )
         })}
@@ -145,14 +193,16 @@ export default function ConversationView() {
 
       {/* Comment input */}
       <div className="comment-input-bar">
-        <div className="avatar" style={{ width:34, height:34, fontSize:13, flexShrink:0 }}>
-          {profile?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'}
-        </div>
+        {profile?.avatar_url
+          ? <img src={profile.avatar_url} alt="" style={{ width:34, height:34, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />
+          : <div className="avatar" style={{ width:34, height:34, fontSize:13, flexShrink:0 }}>{myInitials}</div>
+        }
         <input className="input" style={{ flex:1, padding:'10px 14px', fontSize:14 }}
           placeholder="Write a response…"
           value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && postComment()} />
-        <button className="btn btn-primary btn-sm" onClick={postComment} disabled={posting || !text.trim()}>
+        <button className="btn btn-primary btn-sm"
+          onClick={postComment} disabled={posting || !text.trim()}>
           {posting ? '…' : 'Send'}
         </button>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -8,6 +8,8 @@ import './Profile.css'
 export default function Profile() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const navigate = useNavigate()
+  const fileInputRef = useRef(null)
+
   const [stories,  setStories]  = useState([])
   const [editing,  setEditing]  = useState(false)
   const [form,     setForm]     = useState({ full_name:'', bio:'', community:'' })
@@ -15,6 +17,8 @@ export default function Profile() {
   const [saving,   setSaving]   = useState(false)
   const [toast,    setToast]    = useState(null)
   const [tab,      setTab]      = useState('stories')
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [avatarFile,    setAvatarFile]    = useState(null)
 
   useEffect(() => {
     if (profile) {
@@ -32,19 +36,48 @@ export default function Profile() {
     setStories(data || [])
   }
 
+  function handleAvatarPick(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
   async function saveProfile() {
     setSaving(true)
+
+    let avatar_url = profile?.avatar_url || null
+
+    if (avatarFile) {
+      const ext  = avatarFile.name.split('.').pop()
+      const path = `avatars/${user.id}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('stories').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
+      if (upErr) { showToast(upErr.message, 'error'); setSaving(false); return }
+      const { data: { publicUrl } } = supabase.storage.from('stories').getPublicUrl(path)
+      avatar_url = publicUrl
+    }
+
     const { error } = await supabase.from('profiles')
-      .update({ full_name: form.full_name, bio: form.bio, community: form.community })
+      .update({ full_name: form.full_name, bio: form.bio, community: form.community, avatar_url })
       .eq('id', user.id)
+
     setSaving(false)
     if (error) { showToast(error.message, 'error'); return }
     await refreshProfile()
     setEditing(false)
+    setAvatarFile(null)
     showToast('Profile updated ✓', 'success')
   }
 
-  function showToast(msg, type='default') {
+  async function deleteStory(storyId) {
+    if (!confirm('Delete this story?')) return
+    await supabase.from('stories').delete().eq('id', storyId)
+    fetchMyStories()
+    showToast('Story deleted', 'default')
+  }
+
+  function showToast(msg, type = 'default') {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2500)
   }
@@ -55,12 +88,22 @@ export default function Profile() {
   }
 
   const initials = profile?.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?'
+  const avatarSrc = avatarPreview || profile?.avatar_url
 
   return (
     <div className="screen">
       {/* Profile header */}
       <div className="profile-header">
-        <div className="avatar profile-avatar">{initials}</div>
+        <div className="profile-avatar-wrap" onClick={() => editing && fileInputRef.current?.click()}>
+          {avatarSrc
+            ? <img src={avatarSrc} alt="avatar" className="avatar profile-avatar img" />
+            : <div className="avatar profile-avatar">{initials}</div>
+          }
+          {editing && <div className="avatar-edit-badge">📷</div>}
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*"
+          style={{ display:'none' }} onChange={handleAvatarPick} />
+
         <h2>{profile?.full_name || 'Your Name'}</h2>
         <span className={`pill pill-${profile?.age_group}`}>
           {profile?.age_group === 'elder' ? 'Elder · 65–80' : 'Youth · 13–25'}
@@ -69,7 +112,7 @@ export default function Profile() {
           <p style={{ color:'var(--text-light)', fontSize:13, marginTop:4 }}>📍 {profile.community}</p>
         )}
         {profile?.bio && (
-          <p style={{ fontSize:14, marginTop:8, textAlign:'center', color:'var(--text)' }}>{profile.bio}</p>
+          <p style={{ fontSize:14, marginTop:8, textAlign:'center' }}>{profile.bio}</p>
         )}
 
         <div className="profile-stats">
@@ -78,7 +121,8 @@ export default function Profile() {
           <div className="stat"><strong>{stories.reduce((a,s)=>(a+(s.comments?.length||0)),0)}</strong><small>Responses</small></div>
         </div>
 
-        <button className="btn btn-secondary btn-sm" style={{ marginTop:12 }} onClick={() => setEditing(!editing)}>
+        <button className="btn btn-secondary btn-sm" style={{ marginTop:12 }}
+          onClick={() => setEditing(!editing)}>
           {editing ? 'Cancel' : '✏️  Edit Profile'}
         </button>
       </div>
@@ -87,9 +131,13 @@ export default function Profile() {
       {editing && (
         <div style={{ padding:'0 16px 16px' }}>
           <div className="card">
+            <p style={{ fontSize:13, color:'var(--text-light)', marginBottom:12 }}>
+              Tap your profile picture above to change it
+            </p>
             <div className="input-group">
               <label>Full Name</label>
-              <input className="input" value={form.full_name} onChange={e => setForm(f=>({...f,full_name:e.target.value}))} />
+              <input className="input" value={form.full_name}
+                onChange={e => setForm(f=>({...f,full_name:e.target.value}))} />
             </div>
             <div className="input-group">
               <label>Bio</label>
@@ -98,23 +146,8 @@ export default function Profile() {
             </div>
             <div className="input-group">
               <label>Community / Area</label>
-              <input className="input" value={form.community} onChange={e => setForm(f=>({...f,community:e.target.value}))} />
-            </div>
-            <div className="input-group">
-              <label>Default Story Visibility</label>
-              <div style={{ display:'flex', gap:8 }}>
-                {['public','community','private'].map(v => (
-                  <button key={v} type="button"
-                    className={`privacy-btn ${privacy===v?'active':''}`}
-                    style={{ flex:1, padding:'8px 4px', border:'1.5px solid var(--brown)', borderRadius:8,
-                      background: privacy===v?'var(--blue-light)':'var(--white)',
-                      borderColor: privacy===v?'var(--blue-dark)':'var(--brown)',
-                      cursor:'pointer', fontSize:12, fontFamily:'Poppins,sans-serif', fontWeight:500 }}
-                    onClick={() => setPrivacy(v)}>
-                    {v === 'public' ? '🌐' : v === 'community' ? '🏘' : '🔒'} {v}
-                  </button>
-                ))}
-              </div>
+              <input className="input" value={form.community}
+                onChange={e => setForm(f=>({...f,community:e.target.value}))} />
             </div>
             <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>
               {saving ? 'Saving…' : 'Save Changes'}
@@ -139,11 +172,26 @@ export default function Profile() {
               <div className="emoji">🎙️</div>
               <h3>No stories yet</h3>
               <p>Record your first story to get started!</p>
-              <button className="btn btn-primary btn-sm" style={{ marginTop:16, display:'inline-block' }}
+              <button className="btn btn-primary btn-sm"
+                style={{ marginTop:16, display:'inline-block' }}
                 onClick={() => navigate('/record')}>Record Now</button>
             </div>
           ) : (
-            stories.map(s => <StoryCard key={s.id} story={s} onReactionUpdate={fetchMyStories} />)
+            stories.map(s => (
+              <div key={s.id} style={{ position:'relative' }}>
+                <StoryCard story={s} onReactionUpdate={fetchMyStories} />
+                <button
+                  onClick={() => deleteStory(s.id)}
+                  style={{
+                    position:'absolute', top:12, right:12,
+                    background:'var(--error)', color:'white',
+                    border:'none', borderRadius:8, padding:'4px 10px',
+                    fontSize:12, cursor:'pointer', fontFamily:'Poppins,sans-serif'
+                  }}>
+                  🗑 Delete
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}
